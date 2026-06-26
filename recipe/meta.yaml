@@ -8,6 +8,8 @@ package:
 source:
   url: https://github.com/pytorch/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz
   sha256: 80a06ba0760741aa91f5f7bfb49ef6bb779c8044409dd7ef116f5420f122214b
+  patches:
+    - patches/torchao-017-compat.patch
 
 build:
   number: 0
