@@ -1,0 +1,66 @@
+{% set name = "torchtune" %}
+{% set version = "0.6.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/pytorch/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 80a06ba0760741aa91f5f7bfb49ef6bb779c8044409dd7ef116f5420f122214b
+
+build:
+  number: 0
+  skip: true  # [py<39]
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+  entry_points:
+    - tune = torchtune._cli.tune:main
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools
+    - wheel
+  run:
+    - python
+    - torchdata ==0.11.0
+    - datasets
+    - huggingface_hub
+    - hf-transfer  # upstream requires huggingface_hub[hf_transfer]
+    - safetensors
+    - kagglehub
+    - sentencepiece
+    - tiktoken
+    - blobfile >=2
+    - tokenizers
+    - numpy
+    - tqdm
+    - omegaconf
+    - psutil
+    - pillow >=9.4.0
+
+test:
+  imports:
+    - torchtune
+  commands:
+    - pip check
+    - tune --help
+  requires:
+    - pip
+
+about:
+  home: https://github.com/pytorch/torchtune
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file: LICENSE
+  summary: A native-PyTorch library for LLM fine-tuning
+  description: |
+    torchtune is a PyTorch-native library for easily authoring,
+    fine-tuning and experimenting with LLMs.
+  doc_url: https://pytorch.org/torchtune/main/index.html
+  dev_url: https://github.com/pytorch/torchtune
+
+extra:
+  recipe-maintainers:
+    - pytorch
