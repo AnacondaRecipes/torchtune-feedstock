@@ -44,13 +44,19 @@ requirements:
     - pillow >=9.4.0
 
 test:
+  source_files:
+    - tests
   imports:
     - torchtune
   commands:
     - pip check
     - tune --help
+    - pytest tests/torchtune/training/test_seed.py tests/torchtune/training/test_model_util.py tests/torchtune/training/test_pooling.py tests/torchtune/training/test_precision.py tests/torchtune/training/test_memory.py -v --noconftest --override-ini="addopts=" -x
   requires:
     - pip
+    - pytest
+    - pytest-mock
+    - numpy
 
 about:
   home: https://github.com/pytorch/torchtune
