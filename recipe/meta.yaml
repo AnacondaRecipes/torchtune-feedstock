@@ -9,11 +9,14 @@ source:
   url: https://github.com/pytorch/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz
   sha256: 80a06ba0760741aa91f5f7bfb49ef6bb779c8044409dd7ef116f5420f122214b
   patches:
-    - patches/torchao-017-compat.patch
+    # Backports of upstream torchtune #2951 and #2958, required because torchao
+    # 0.17.0 removed the int8_dynamic_activation_int4_weight / int4_weight_only
+    # factories that v0.6.1 imports at module scope. Apply in order.
+    - patches/0001-migrate-to-Int8DynamicActivationIntxWeightConfig.patch
+    - patches/0002-replace-TensorCoreTiledLayout-with-Int4PackingFormat.patch
 
 build:
   number: 0
-  skip: true  # [py<39]
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
   entry_points:
     - tune = torchtune._cli.tune:main
@@ -26,6 +29,7 @@ requirements:
     - wheel
   run:
     - python
+    - pytorch  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
     - torchdata ==0.11.0
     - torchao  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
     - datasets
@@ -48,9 +52,14 @@ test:
     - tests
   imports:
     - torchtune
+    # Guards the patched module: both patches change module-scope torchao
+    # imports, which is exactly what breaks against torchao 0.17.
+    - torchtune.training.quantization
   commands:
     - pip check
     - tune --help
+    # --noconftest and the addopts reset skip upstream's root conftest, which
+    # pulls in pytest-integration via --without-integration; it is a dev-only dep.
     - pytest tests/torchtune/training/test_seed.py tests/torchtune/training/test_model_util.py tests/torchtune/training/test_pooling.py tests/torchtune/training/test_precision.py tests/torchtune/training/test_memory.py -v --noconftest --override-ini="addopts=" -x
   requires:
     - pip
@@ -72,4 +81,4 @@ about:
 
 extra:
   recipe-maintainers:
-    - pytorch
+    - xkong-anaconda
