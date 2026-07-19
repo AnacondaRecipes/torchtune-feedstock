@@ -76,9 +76,13 @@ about:
   description: |
     torchtune is a PyTorch-native library for easily authoring,
     fine-tuning and experimenting with LLMs.
-  doc_url: https://pytorch.org/torchtune/main/index.html
+  doc_url: https://meta-pytorch.org/torchtune/main/index.html
   dev_url: https://github.com/pytorch/torchtune
 
 extra:
+  skip-lints:
+    # pytorch is a CBC-pinned runtime-only dep of a pure-Python package (nothing is
+    # compiled or linked at build time), so it does not belong in host.
+    - cbc_dep_in_run_missing_from_host
   recipe-maintainers:
     - xkong-anaconda
