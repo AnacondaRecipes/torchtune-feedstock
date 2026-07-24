@@ -1,0 +1,62 @@
+From e195b2c884d2ae598abc48f1e5d50f2a54807f57 Mon Sep 17 00:00:00 2001
+From: Jesse Cai <jessecai@meta.com>
+Date: Wed, 18 Feb 2026 11:45:57 -0800
+Subject: [PATCH 1/2] Migrate internal uses of
+ Int8DynamicActivationInt4WeightConfig to
+ Int8DynamicActivationIntxWeightConfig (#2951)
+
+Backport of upstream torchtune PR #2951:
+  https://github.com/meta-pytorch/torchtune/pull/2951
+
+Needed because torchao 0.17.0 (the version on defaults) removed the
+`int8_dynamic_activation_int4_weight` factory that v0.6.1 imports at module
+scope. `torchtune/training/__init__.py` imports this module, so without the
+change `import torchtune` fails outright.
+
+Adapted for the v0.6.1 tag by X. Kong <xkong@anaconda.com>:
+  - v0.6.1 predates upstream's migration to the config-based torchao API and
+    still calls the `int8_dynamic_activation_int4_weight` factory rather than
+    `Int8DynamicActivationInt4WeightConfig`. That intermediate rename is
+    folded in here; the resulting call is identical to the one #2951 lands.
+  - Added `import torch`, required by the `torch.int4` argument #2951
+    introduces. The upstream module never imports torch itself.
+  - Dropped the docs/source/tutorials/qat_finetune.rst hunk: the code block it
+    edits does not exist at v0.6.1, and docs are not packaged.
+
+Co-authored-by: X. Kong <xkong@anaconda.com>
+---
+diff --git a/torchtune/training/quantization.py b/torchtune/training/quantization.py
+index e5c88da..aa8f450 100644
+--- a/torchtune/training/quantization.py
++++ b/torchtune/training/quantization.py
+@@ -6,6 +6,7 @@
+ 
+ from typing import Callable, Optional
+ 
++import torch
+ from torch import nn
+ from torchtune.modules.peft.lora import LoRALinear, QATLoRALinear
+ 
+@@ -19,9 +20,10 @@ except ImportError:
+ 
+ from torchao.quantization import (
+     int4_weight_only,
+-    int8_dynamic_activation_int4_weight,
++    Int8DynamicActivationIntxWeightConfig,
+     quantize_,
+ )
++from torchao.quantization.granularity import PerGroup
+ 
+ try:
+     # torchao 0.7+
+@@ -84,7 +86,9 @@ class Int8DynActInt4WeightQuantizer:
+         self.groupsize = groupsize
+ 
+     def quantize(self, model):
+-        quantize_fn = int8_dynamic_activation_int4_weight(self.groupsize)
++        quantize_fn = Int8DynamicActivationIntxWeightConfig(
++            weight_dtype=torch.int4, weight_granularity=PerGroup(self.groupsize)
++        )
+         quantize_(model, quantize_fn)
+         return model
+ 

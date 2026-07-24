@@ -1,0 +1,75 @@
+From 14bb4dd6284be226b96697e3c2ddd365f283bcc1 Mon Sep 17 00:00:00 2001
+From: Jerry Zhang <jerryzh168@gmail.com>
+Date: Fri, 3 Apr 2026 11:01:18 -0700
+Subject: [PATCH 2/2] Fix torchtune ImportError after TensorCoreTiledLayout
+ removal
+
+Backport of upstream torchtune PR #2958:
+  https://github.com/meta-pytorch/torchtune/pull/2958
+
+Replace deleted TensorCoreTiledLayout with Int4PackingFormat.TILE_PACKED_TO_4D
+in torchtune's Int4WeightOnlyQuantizer to fix the import error caused by the
+upstream torchao change in https://github.com/pytorch/ao/pull/4153.
+
+Adapted for the v0.6.1 tag by X. Kong <xkong@anaconda.com>:
+  - At torchao 0.17.0 (the version on defaults) `TensorCoreTiledLayout` still
+    exists, so #2958's own trigger has not landed yet. This backport is still
+    required here for a different symbol in the same statement: torchao 0.17.0
+    removed the `int4_weight_only` factory that v0.6.1 imports at module scope.
+    Applying #2958 now fixes that and is forward-compatible with the
+    TensorCoreTiledLayout removal #2958 actually targets.
+  - v0.6.1 predates upstream's migration to the config-based torchao API and
+    still calls `int4_weight_only` rather than `Int4WeightOnlyConfig`. That
+    intermediate rename is folded in here; the resulting call is identical to
+    the one #2958 lands.
+  - v0.6.1 guards the TensorCoreTiledLayout import in a try/except that falls
+    back to the torchao <=0.6 spelling (TensorCoreTiledLayoutType). Upstream had
+    already dropped that fallback by #2958, so the whole block is removed rather
+    than the single import line. Nothing else references the symbol.
+
+Note: `Int4WeightOnlyQuantizer.__init__` still accepts `inner_k_tiles`, but the
+TILE_PACKED_TO_4D path in torchao 0.17.0 hardcodes it to 8 (see
+torchao/quantization/quantize_/workflows/int4/int4_tile_packed_to_4d_tensor.py),
+so a non-default value is silently ignored. That is upstream's behaviour as of
+#2958 and is left as-is deliberately; the default (8) is unchanged from v0.6.1.
+
+Co-authored-by: X. Kong <xkong@anaconda.com>
+---
+diff --git a/torchtune/training/quantization.py b/torchtune/training/quantization.py
+index aa8f450..42c2478 100644
+--- a/torchtune/training/quantization.py
++++ b/torchtune/training/quantization.py
+@@ -11,18 +11,12 @@ from torch import nn
+ from torchtune.modules.peft.lora import LoRALinear, QATLoRALinear
+ 
+ 
+-try:
+-    # torchao 0.7+
+-    from torchao.dtypes import TensorCoreTiledLayout
+-except ImportError:
+-    # torchao 0.6 and before
+-    from torchao.dtypes import TensorCoreTiledLayoutType as TensorCoreTiledLayout
+-
+ from torchao.quantization import (
+-    int4_weight_only,
++    Int4WeightOnlyConfig,
+     Int8DynamicActivationIntxWeightConfig,
+     quantize_,
+ )
++from torchao.quantization.quantize_.workflows import Int4PackingFormat
+ from torchao.quantization.granularity import PerGroup
+ 
+ try:
+@@ -115,8 +109,10 @@ class Int4WeightOnlyQuantizer:
+         self.inner_k_tiles = inner_k_tiles
+ 
+     def quantize(self, model):
+-        layout_type = TensorCoreTiledLayout(self.inner_k_tiles)
+-        quantize_fn = int4_weight_only(self.groupsize, layout_type)
++        quantize_fn = Int4WeightOnlyConfig(
++            group_size=self.groupsize,
++            int4_packing_format=Int4PackingFormat.TILE_PACKED_TO_4D,
++        )
+         quantize_(model, quantize_fn)
+         return model
+ 

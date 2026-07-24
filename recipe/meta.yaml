@@ -1,0 +1,88 @@
+{% set name = "torchtune" %}
+{% set version = "0.6.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/pytorch/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 80a06ba0760741aa91f5f7bfb49ef6bb779c8044409dd7ef116f5420f122214b
+  patches:
+    # Backports of upstream torchtune #2951 and #2958, required because torchao
+    # 0.17.0 removed the int8_dynamic_activation_int4_weight / int4_weight_only
+    # factories that v0.6.1 imports at module scope. Apply in order.
+    - patches/0001-migrate-to-Int8DynamicActivationIntxWeightConfig.patch
+    - patches/0002-replace-TensorCoreTiledLayout-with-Int4PackingFormat.patch
+
+build:
+  number: 0
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+  entry_points:
+    - tune = torchtune._cli.tune:main
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools
+    - wheel
+  run:
+    - python
+    - pytorch  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
+    - torchdata ==0.11.0
+    - torchao  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
+    - datasets
+    - huggingface_hub
+    - hf-transfer  # upstream requires huggingface_hub[hf_transfer]
+    - safetensors
+    - kagglehub
+    - sentencepiece
+    - tiktoken
+    - blobfile >=2
+    - tokenizers
+    - numpy
+    - tqdm
+    - omegaconf
+    - psutil
+    - pillow >=9.4.0
+
+test:
+  source_files:
+    - tests
+  imports:
+    - torchtune
+    # Guards the patched module: both patches change module-scope torchao
+    # imports, which is exactly what breaks against torchao 0.17.
+    - torchtune.training.quantization
+  commands:
+    - pip check
+    - tune --help
+    # --noconftest and the addopts reset skip upstream's root conftest, which
+    # pulls in pytest-integration via --without-integration; it is a dev-only dep.
+    - pytest tests/torchtune/training/test_seed.py tests/torchtune/training/test_model_util.py tests/torchtune/training/test_pooling.py tests/torchtune/training/test_precision.py tests/torchtune/training/test_memory.py -v --noconftest --override-ini="addopts=" -x
+  requires:
+    - pip
+    - pytest
+    - pytest-mock
+    - numpy
+
+about:
+  home: https://github.com/pytorch/torchtune
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file: LICENSE
+  summary: A native-PyTorch library for LLM fine-tuning
+  description: |
+    torchtune is a PyTorch-native library for easily authoring,
+    fine-tuning and experimenting with LLMs.
+  doc_url: https://meta-pytorch.org/torchtune/main/index.html
+  dev_url: https://github.com/pytorch/torchtune
+
+extra:
+  skip-lints:
+    # pytorch is a CBC-pinned runtime-only dep of a pure-Python package (nothing is
+    # compiled or linked at build time), so it does not belong in host.
+    - cbc_dep_in_run_missing_from_host
+  recipe-maintainers:
+    - xkong-anaconda
