@@ -16,7 +16,7 @@ source:
     - patches/0002-replace-TensorCoreTiledLayout-with-Int4PackingFormat.patch
 
 build:
-  number: 0
+  number: 1
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
   entry_points:
     - tune = torchtune._cli.tune:main
