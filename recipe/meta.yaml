@@ -31,7 +31,11 @@ requirements:
     - python
     - pytorch  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
     - torchdata ==0.11.0
-    - torchao  # required at import time; not in pyproject.toml (upstream: nightly/stable conflict)
+    # Cap <0.18: torchao 0.18.0 removed torchao.dtypes.nf4tensor (moved NF4Tensor
+    # into torchao.quantization), which torchtune 0.6.1 imports at module scope —
+    # verified break in CI. 0.17.x remains on pkgs/main. Not in pyproject.toml
+    # (upstream: nightly/stable conflict); required at import time.
+    - torchao <0.18
     - datasets
     - huggingface_hub
     - hf-transfer  # upstream requires huggingface_hub[hf_transfer]
