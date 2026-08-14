@@ -1,7 +1,0 @@
-# TEMPORARY — staging channel so CI resolves torchao 0.18.0 (PKG-17137, PR #4)
-# before it publishes to pkgs/main, to validate the v1-layout removal against
-# torchtune's module-scope torchao imports.
-# MUST be removed before merge — never merge with a staging channel configured.
-# Drop this file once torchao 0.18.0 is on pkgs/main.
-channels:
-  - https://staging.continuum.io/pbp/fs/torchao-feedstock/pr4/84283da431aa987f1e18862b17373397abd9ed00
